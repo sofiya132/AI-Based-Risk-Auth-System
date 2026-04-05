@@ -31,4 +31,4 @@ Conventional login systems rely solely on passwords, making them highly vulnerab
 ## 👥 Team Contributions
 - **[Sowmya N Kumar](https://github.com/Sowmya11082006)**: Register Module (Full Stack), bcrypt hashing, and MongoDB storage. 
 - **[Sofiya Sindgi](https://github.com/sofiya132)**: Login Module (Full Stack), JWT generation, and ML model training. 
-- **[Zaid Nisar Banday](https://github.com/)**: Risk + OTP Module (Full Stack), Flask-Mail, and model integration.
+- **[Zaid Nisar Banday](https://github.com/zaidnisarbanday06)**: Risk + OTP Module (Full Stack), Flask-Mail, and model integration.
