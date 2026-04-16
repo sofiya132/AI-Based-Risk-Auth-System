@@ -1,3 +1,5 @@
+
+import os # Make sure to add this import at the top!
 from flask import Flask
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -40,5 +42,8 @@ def health_check():
 def handle_options(path):
     return "", 200
 
+import os # Make sure to add this import at the top!
+
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
