@@ -55,7 +55,8 @@ def health_check():
     return {"status": "AI Risk Auth API is running"}, 200
 
 # Handle Preflight (OPTIONS) requests
-@app.route("/api/<path:path>", methods=["OPTIONS"])
+# Change this from /api/<path:path> to just /<path:path>
+@app.route("/<path:path>", methods=["OPTIONS"])
 def handle_options(path):
     return "", 200
 
