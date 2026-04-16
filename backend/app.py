@@ -14,7 +14,11 @@ app.config.from_object(Config)
 # This handles the handshake between your Netlify frontend and Render backend
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://ai-based-risk-auth-system.netlify.app"],
+        "origins": [
+            "https://ai-based-risk-auth-system.netlify.app",
+            "https://ai-based-risk-auth-system.netlify.app/", # added trailing slash
+            "http://localhost:3000" # helpful for local testing
+        ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
