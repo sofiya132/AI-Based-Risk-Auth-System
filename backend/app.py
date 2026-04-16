@@ -6,25 +6,12 @@ from flask_limiter.util import get_remote_address
 from flask_mail import Mail
 from config import Config
 
-# Initialize Flask App
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# 1. Robust CORS Configuration
-# This handles the handshake between your Netlify frontend and Render backend
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://ai-based-risk-auth-system.netlify.app",
-            "https://ai-based-risk-auth-system.netlify.app/", # added trailing slash
-            "http://localhost:3000" # helpful for local testing
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+# Allow ALL origins
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Initialize Limiter
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
@@ -32,20 +19,16 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-# Initialize Mail
 mail = Mail(app)
 
-# Import and Register Blueprints
 from routes.auth_routes import auth_bp
 from routes.dashboard_routes import dashboard_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 
-# 2. Manual Header Fallback
-# Sometimes browsers need this extra layer to confirm the CORS policy
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = 'https://ai-based-risk-auth-system.netlify.app'
+    response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     return response
@@ -54,15 +37,14 @@ def add_cors_headers(response):
 def health_check():
     return {"status": "AI Risk Auth API is running"}, 200
 
-# Handle Preflight (OPTIONS) requests
-# Change this from /api/<path:path> to just /<path:path>
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_options(path):
-    return "", 200
+    response = app.make_default_options_response()
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    return response
 
-# 3. The Port Fix for Render
 if __name__ == "__main__":
-    # Render provides the port via environment variables
     port = int(os.environ.get("PORT", 5000))
-    # '0.0.0.0' allows the app to be accessible externally
     app.run(host="0.0.0.0", port=port)
