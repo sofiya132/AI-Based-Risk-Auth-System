@@ -1,0 +1,26 @@
+# render.yaml — Tells Render how to deploy the backend
+
+services:
+  - type: web                    # Deploy as a web service
+    name: ai-risk-auth-api       # Service name (shown in Render dashboard)
+    env: python                  # Python environment
+    buildCommand: "pip install -r requirements.txt && python backend/ml/generate_csv.py && python backend/ml/train_model.py"
+    # buildCommand runs once during deployment:
+    # 1. Install Python packages
+    # 2. Generate the synthetic CSV
+    # 3. Train the ML model and save rf_model.pkl
+    startCommand: "gunicorn backend.app:app --bind 0.0.0.0:$PORT"
+    # startCommand runs on every restart:
+    # gunicorn serves the Flask app on the port Render assigns
+
+    envVars:
+      - key: MONGO_URI
+        sync: false              # sync:false = set manually in Render dashboard
+      - key: SECRET_KEY
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        sync: false

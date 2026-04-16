@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — AI Risk Auth</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="card">
+        <h1>👁 Secure Sign In</h1>
+        <p class="subtitle">Risk-factor analysis on every login</p>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" placeholder="you@example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Your password">
+        </div>
+
+        <button class="btn-primary" id="login-btn" onclick="handleLogin()">
+            Sign In
+        </button>
+
+        <div class="link-row">
+            New here? <a href="register.html">Create an account</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        redirectIfLoggedIn();
+
+        // Store email for OTP page (in case of risky login redirect)
+        function saveEmailForOTP(email) {
+            sessionStorage.setItem("otp_email", email);
+        }
+
+        async function handleLogin() {
+            const email    = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const btn      = document.getElementById("login-btn");
+
+            if (!email || !password) {
+                showAlert("alert", "Please enter your email and password.");
+                return;
+            }
+
+            setButtonLoading(btn, true, "Sign In");
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        device_fingerprint: getDeviceFingerprint()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.require_otp) {
+                        // RISKY LOGIN: save email and redirect to OTP page
+                        saveEmailForOTP(email);
+                        showAlert("alert",
+                            "⚠️ Unusual login detected! OTP sent to your email.",
+                            "success");
+                        setTimeout(() => { window.location.href = "otp.html"; }, 1800);
+                    } else {
+                        // SAFE LOGIN: save token and go to dashboard
+                        saveToken(data.token);
+                        showAlert("alert", "✅ Login successful!", "success");
+                        setTimeout(() => { window.location.href = "dashboard.html"; }, 1000);
+                    }
+                } else {
+                    showAlert("alert", data.error || "Login failed.");
+                }
+            } catch (err) {
+                showAlert("alert", "Cannot connect to server.");
+            } finally {
+                setButtonLoading(btn, false, "Sign In");
+            }
+        }
+
+        // Allow Enter key to submit the form
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleLogin();
+        });
+    </script>
+</body>
+</html>
