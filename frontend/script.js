@@ -2,7 +2,7 @@
 
 // ── Configuration ──────────────────────────────────────────────────────────
 // Change this to your Render backend URL when deployed
-const API_BASE = "https://ai-based-risk-auth-system.onrender.com/api";
+const API_BASE = "https://ai-based-risk-auth-system.onrender.com";
 // ── Device Fingerprinting ───────────────────────────────────────────────────
 /**
  * Generate a simple device fingerprint from browser properties.
