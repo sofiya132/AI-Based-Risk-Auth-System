@@ -12,6 +12,7 @@ app.config.from_object(Config)
 # Allow ALL origins
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
