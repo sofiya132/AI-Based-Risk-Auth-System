@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification — AI Risk Auth</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="card">
+        <h1>📧 Verify Identity</h1>
+        <p class="subtitle">Enter the 6-digit code sent to your email</p>
+
+        <div class="risk-panel">
+            ⚠️ Unusual login activity detected. Please verify it's you.
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="form-group">
+            <label for="otp">Verification Code</label>
+            <!-- otp-input class applies large centered number styling -->
+            <input type="text" id="otp" class="otp-input"
+                   placeholder="000000" maxlength="6"
+                   inputmode="numeric"
+                   pattern="[0-9]{6}">
+        </div>
+
+        <button class="btn-primary" id="verify-btn" onclick="handleVerifyOTP()">
+            Verify Code
+        </button>
+
+        <div class="link-row">
+            <a href="login.html">← Back to login</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Retrieve the email saved by login.html
+        const userEmail = sessionStorage.getItem("otp_email");
+
+        // If no email found, redirect back to login
+        if (!userEmail) {
+            window.location.href = "login.html";
+        }
+
+        async function handleVerifyOTP() {
+            const otp = document.getElementById("otp").value.trim();
+            const btn = document.getElementById("verify-btn");
+
+            if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+                showAlert("alert", "Please enter a valid 6-digit code.");
+                return;
+            }
+
+            setButtonLoading(btn, true, "Verify Code");
+
+            try {
+                const response = await fetch(`${API_BASE}/verify-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        email: userEmail,
+                        otp: otp
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // OTP verified — save JWT and go to dashboard
+                    saveToken(data.token);
+                    // Clean up the stored email
+                    sessionStorage.removeItem("otp_email");
+                    showAlert("alert", "✅ Identity verified! Welcome.", "success");
+                    setTimeout(() => { window.location.href = "dashboard.html"; }, 1200);
+                } else {
+                    showAlert("alert", data.error || "OTP verification failed.");
+                }
+            } catch (err) {
+                showAlert("alert", "Cannot connect to server.");
+            } finally {
+                setButtonLoading(btn, false, "Verify Code");
+            }
+        }
+
+        // Auto-submit when 6 digits are entered
+        document.getElementById("otp").addEventListener("input", function() {
+            if (this.value.length === 6) {
+                handleVerifyOTP();
+            }
+        });
+    </script>
+</body>
+</html>

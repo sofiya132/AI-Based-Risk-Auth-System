@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — AI Risk Auth</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="card dashboard-card">
+        <div class="user-info">
+            <!-- Avatar: shows first letter of email -->
+            <div class="avatar" id="avatar">?</div>
+            <div>
+                <h1 style="font-size:18px; margin-bottom:4px" id="user-email">Loading...</h1>
+                <p style="font-size:13px; color:rgba(255,255,255,0.5)" id="member-since">Member since...</p>
+            </div>
+            <!-- Logout button in top-right area -->
+            <button class="logout-btn" onclick="logout()" style="margin-left:auto">Sign Out</button>
+        </div>
+
+        <!-- Security status section -->
+        <div style="margin-bottom:20px">
+            <h2 style="font-size:15px; font-weight:600; margin-bottom:12px; color:rgba(255,255,255,0.7)">
+                🛡️ Security Status
+            </h2>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <span class="badge safe">✓ Login Verified</span>
+                <span id="lock-badge" class="badge safe">✓ Account Active</span>
+            </div>
+        </div>
+
+        <!-- Recent login activity section -->
+        <div>
+            <h2 style="font-size:15px; font-weight:600; margin-bottom:12px; color:rgba(255,255,255,0.7)">
+                📋 Recent Login Activity
+            </h2>
+            <div id="login-logs">
+                <!-- Logs will be populated by JavaScript -->
+                <div style="color:rgba(255,255,255,0.4); font-size:13px">Loading activity...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // This runs before anything else — redirects to login if not authenticated
+        requireLogin();
+
+        // Load dashboard data when page loads
+        window.addEventListener("DOMContentLoaded", loadDashboard);
+
+        async function loadDashboard() {
+            try {
+                // Use apiRequest() which automatically adds the Authorization header
+                const response = await apiRequest("/dashboard", "GET");
+
+                if (response.status === 401) {
+                    // Token expired or invalid — force re-login
+                    removeToken();
+                    window.location.href = "login.html";
+                    return;
+                }
+
+                const data = await response.json();
+
+                // Populate user info
+                const email = data.user.email;
+                document.getElementById("user-email").textContent = email;
+                document.getElementById("avatar").textContent = email[0].toUpperCase();
+
+                const joinDate = new Date(data.user.created_at).toLocaleDateString("en-IN", {
+                    year: "numeric", month: "long", day: "numeric"
+                });
+                document.getElementById("member-since").textContent = "Member since " + joinDate;
+
+                // Show lock status
+                if (data.user.is_locked) {
+                    document.getElementById("lock-badge").textContent = "⚠ Account Locked";
+                    document.getElementById("lock-badge").className = "badge risky";
+                }
+
+                // Render recent login logs
+                const logsContainer = document.getElementById("login-logs");
+                if (data.recent_logins.length === 0) {
+                    logsContainer.innerHTML = `<div style="color:rgba(255,255,255,0.4);font-size:13px">No recent activity.</div>`;
+                    return;
+                }
+
+                logsContainer.innerHTML = data.recent_logins.map(log => {
+                    const date = new Date(log.timestamp).toLocaleString("en-IN");
+                    const riskClass = log.risk_score === 0 ? "safe" : "risky";
+                    const riskText = log.risk_score === 0 ? "Safe" : "Risky";
+                    return `
+                        <div class="login-log">
+                            <div>
+                                <div style="font-weight:500;margin-bottom:2px">${date}</div>
+                                <div style="color:rgba(255,255,255,0.45);font-size:12px">IP: ${log.ip}</div>
+                            </div>
+                            <span class="badge ${riskClass}">${riskText}</span>
+                        </div>
+                    `;
+                }).join("");
+
+            } catch (err) {
+                console.error("Dashboard load error:", err);
+            }
+        }
+
+        function logout() {
+            removeToken();
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>
