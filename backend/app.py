@@ -9,11 +9,16 @@ from config import Config
 app = Flask(__name__)
 app.config.from_object(Config)
 
-CORS(app, resources={r"/*": {"origins": [
-    "https://ai-based-risk-auth-system.netlify.app",
-    "http://127.0.0.1:5500",
-    "http://localhost:5500"
-]}}, supports_credentials=True)
+CORS(app,
+    origins=[
+        "https://ai-based-risk-auth-system.netlify.app",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500"
+    ],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    supports_credentials=False
+)
 
 limiter = Limiter(
     key_func=get_remote_address,
