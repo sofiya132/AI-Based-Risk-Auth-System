@@ -1,12 +1,10 @@
-# render.yaml — Tells Render how to deploy the backend
-
 services:
   - type: web
-    name: ai-risk-auth-api
+    name: ai-based-risk-auth-system
     env: python
     rootDir: backend
-    buildCommand: "pip install -r requirements.txt && python ml/generate_csv.py && python ml/train_model.py"
-    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT"
+    buildCommand: pip install -r requirements.txt && python ml/generate_csv.py && python ml/train_model.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
     envVars:
       - key: MONGO_URI
         sync: false
