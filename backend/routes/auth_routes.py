@@ -1,5 +1,3 @@
-# auth_routes.py — /register, /login, /verify-otp endpoints
-
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 from db import login_logs_collection
@@ -30,7 +28,10 @@ def register():
     if find_user_by_email(email):
         return jsonify({"error": "Email already registered"}), 409
 
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    # Fix: take only first IP
+    forwarded = request.headers.get("X-Forwarded-For", request.remote_addr)
+    ip = forwarded.split(",")[0].strip()
+
     user_id = create_user(email, password, ip, device_fingerprint)
 
     return jsonify({
@@ -50,8 +51,11 @@ def login():
 
     email = data["email"].lower().strip()
     password = data["password"]
-    device_fingerprint = data.get("device_fingerprint", "unknown")  # ← this line MUST be here
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    device_fingerprint = data.get("device_fingerprint", "unknown")
+
+    # Fix: take only first IP
+    forwarded = request.headers.get("X-Forwarded-For", request.remote_addr)
+    ip = forwarded.split(",")[0].strip()
 
     # Step 1: Find user
     user = find_user_by_email(email)
@@ -68,10 +72,10 @@ def login():
         remaining = max(0, 5 - user["failed_attempts"] - 1)
         return jsonify({"error": f"Invalid credentials. {remaining} attempts remaining."}), 401
 
-    # Step 4: Reset failed attempts on success
+    # Step 4: Reset failed attempts
     reset_failed_attempts(email)
 
-    # Step 5: Build login data for risk engine
+    # Step 5: Build login data
     login_data = {
         "ip": ip,
         "device": device_fingerprint,
