@@ -1,6 +1,5 @@
 import os
-from flask import Flask
-from flask_cors import CORS
+from flask import Flask, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_mail import Mail
@@ -8,12 +7,6 @@ from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
-
-CORS(app,
-    origins="*",
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-)
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -28,6 +21,24 @@ from routes.auth_routes import auth_bp
 from routes.dashboard_routes import dashboard_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        from flask import make_response
+        response = make_response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.status_code = 200
+        return response
 
 @app.route("/", methods=["GET"])
 def health_check():
