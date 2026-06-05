@@ -9,9 +9,11 @@ from config import Config
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Allow ALL origins
-CORS(app, resources={r"/*": {"origins": "*"}})
-
+CORS(app, resources={r"/*": {"origins": [
+    "https://ai-based-risk-auth-system.netlify.app",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500"
+]}}, supports_credentials=True)
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -27,24 +29,13 @@ from routes.dashboard_routes import dashboard_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    return response
-
 @app.route("/", methods=["GET"])
 def health_check():
     return {"status": "AI Risk Auth API is running"}, 200
 
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_options(path):
-    response = app.make_default_options_response()
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    return response
+    return {}, 204
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
