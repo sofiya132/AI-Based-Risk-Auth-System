@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timezone
 from db import login_logs_collection
 from models.user_model import (
@@ -8,6 +8,7 @@ from models.user_model import (
 from utils.jwt_utils import create_token
 from utils.otp_utils import generate_otp, save_otp, verify_otp
 from ml.risk_engine import predict_risk
+import threading
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api")
 
@@ -37,6 +38,25 @@ def register():
         "message": "Registration successful",
         "user_id": user_id
     }), 201
+
+
+# ─── BACKGROUND EMAIL SENDER ─────────────────────────────────────────────────
+
+def send_otp_email(app, recipient, otp_code):
+    """Send OTP email in background thread so it doesn't block main request."""
+    try:
+        with app.app_context():
+            from flask_mail import Message
+            from app import mail
+            msg = Message(
+                subject="Your Security Verification Code",
+                recipients=[recipient],
+                body=f"Your one-time code is: {otp_code}\n\nExpires in 5 minutes."
+            )
+            mail.send(msg)
+            print(f"OTP email sent successfully to {recipient}")
+    except Exception as e:
+        print(f"Mail error (OTP still valid in DB): {e}")
 
 
 # ─── LOGIN ───────────────────────────────────────────────────────────────────
@@ -109,19 +129,13 @@ def login():
         otp = generate_otp()
         save_otp(email, otp)
 
-        # Wrap mail in try/except so crash doesn't affect response
-        try:
-            from app import mail
-            from flask_mail import Message
-            msg = Message(
-                subject="Your Security Verification Code",
-                recipients=[email],
-                body=f"Your one-time code is: {otp}\n\nExpires in 5 minutes."
-            )
-            mail.send(msg)
-            print(f"OTP email sent successfully to {email}")
-        except Exception as e:
-            print(f"Mail error (OTP still saved in DB): {e}")
+        # Send email in background thread — won't crash main request!
+        thread = threading.Thread(
+            target=send_otp_email,
+            args=(current_app._get_current_object(), email, otp)
+        )
+        thread.daemon = True
+        thread.start()
 
         log_entry["otp_triggered"] = True
         log_entry["action"] = "otp_sent"
