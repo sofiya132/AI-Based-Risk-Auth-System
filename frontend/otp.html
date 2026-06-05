@@ -19,7 +19,6 @@
 
         <div class="form-group">
             <label for="otp">Verification Code</label>
-            <!-- otp-input class applies large centered number styling -->
             <input type="text" id="otp" class="otp-input"
                    placeholder="000000" maxlength="6"
                    inputmode="numeric"
@@ -37,10 +36,8 @@
 
     <script src="script.js"></script>
     <script>
-        // Retrieve the email saved by login.html
         const userEmail = sessionStorage.getItem("otp_email");
 
-        // If no email found, redirect back to login
         if (!userEmail) {
             window.location.href = "login.html";
         }
@@ -55,6 +52,10 @@
             }
 
             setButtonLoading(btn, true, "Verify Code");
+            showAlert("alert", "⏳ Verifying, please wait...", "success");
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 90000);
 
             try {
                 const response = await fetch(`${API_BASE}/verify-otp`, {
@@ -63,15 +64,15 @@
                     body: JSON.stringify({
                         email: userEmail,
                         otp: otp
-                    })
+                    }),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeout);
                 const data = await response.json();
 
                 if (response.ok) {
-                    // OTP verified — save JWT and go to dashboard
                     saveToken(data.token);
-                    // Clean up the stored email
                     sessionStorage.removeItem("otp_email");
                     showAlert("alert", "✅ Identity verified! Welcome.", "success");
                     setTimeout(() => { window.location.href = "dashboard.html"; }, 1200);
@@ -79,13 +80,17 @@
                     showAlert("alert", data.error || "OTP verification failed.");
                 }
             } catch (err) {
-                showAlert("alert", "Cannot connect to server.");
+                clearTimeout(timeout);
+                if (err.name === "AbortError") {
+                    showAlert("alert", "⏱️ Server is waking up. Please try again in a moment.");
+                } else {
+                    showAlert("alert", "Cannot connect to server.");
+                }
             } finally {
                 setButtonLoading(btn, false, "Verify Code");
             }
         }
 
-        // Auto-submit when 6 digits are entered
         document.getElementById("otp").addEventListener("input", function() {
             if (this.value.length === 6) {
                 handleVerifyOTP();
