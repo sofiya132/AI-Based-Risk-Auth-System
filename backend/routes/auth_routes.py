@@ -28,7 +28,6 @@ def register():
     if find_user_by_email(email):
         return jsonify({"error": "Email already registered"}), 409
 
-    # Fix: take only first IP
     forwarded = request.headers.get("X-Forwarded-For", request.remote_addr)
     ip = forwarded.split(",")[0].strip()
 
@@ -53,7 +52,6 @@ def login():
     password = data["password"]
     device_fingerprint = data.get("device_fingerprint", "unknown")
 
-    # Fix: take only first IP
     forwarded = request.headers.get("X-Forwarded-For", request.remote_addr)
     ip = forwarded.split(",")[0].strip()
 
@@ -111,14 +109,19 @@ def login():
         otp = generate_otp()
         save_otp(email, otp)
 
-        from app import mail
-        from flask_mail import Message
-        msg = Message(
-            subject="Your Security Verification Code",
-            recipients=[email],
-            body=f"Your one-time code is: {otp}\n\nExpires in 5 minutes."
-        )
-        mail.send(msg)
+        # Wrap mail in try/except so crash doesn't affect response
+        try:
+            from app import mail
+            from flask_mail import Message
+            msg = Message(
+                subject="Your Security Verification Code",
+                recipients=[email],
+                body=f"Your one-time code is: {otp}\n\nExpires in 5 minutes."
+            )
+            mail.send(msg)
+            print(f"OTP email sent successfully to {email}")
+        except Exception as e:
+            print(f"Mail error (OTP still saved in DB): {e}")
 
         log_entry["otp_triggered"] = True
         log_entry["action"] = "otp_sent"
