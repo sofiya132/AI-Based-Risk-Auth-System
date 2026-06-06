@@ -1,7 +1,7 @@
 import pickle
 import os
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 model_path = os.path.join(os.path.dirname(__file__), "rf_model.pkl")
 
@@ -14,17 +14,25 @@ except FileNotFoundError:
     print("WARNING: rf_model.pkl not found. Run train_model.py first!")
 
 
+def get_ist_hour():
+    """Get current hour in IST (UTC+5:30)."""
+    ist_time = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    return ist_time.hour
+
+
 def extract_features(login_data, user_profile):
+
     # Feature 1: IP Match
     ip_match = 1 if login_data["ip"] == user_profile.get("usual_ip") else 0
 
     # Feature 2: Device Match
     device_match = 1 if login_data["device"] == user_profile.get("usual_device") else 0
 
-    # Feature 3: Hour Deviation
-    current_hour = datetime.now(timezone.utc).hour
+    # Feature 3: Hour Deviation (using IST)
+    current_hour = get_ist_hour()
     usual_start = user_profile.get("usual_hour_start", 0)
     usual_end   = user_profile.get("usual_hour_end", 23)
+
     if usual_start <= current_hour <= usual_end:
         hour_deviation = 0
     else:
@@ -57,22 +65,25 @@ def predict_risk(login_data, user_profile):
     device_match = features[1]
     failed_att   = features[3]
 
-    # Rule 1: New device → always risky
-    if device_match == 0:
-        print(f"Risk Engine: RISKY — Unknown device | features={features}")
-        return 1, features
+    print(f"Risk Engine: features={features} | ip={login_data['ip']} | usual_ip={user_profile.get('usual_ip')}")
 
-    # Rule 2: Different IP + different geo → risky
-    if ip_match == 0 and features[4] == 1:
-        print(f"Risk Engine: RISKY — Different IP+Geo | features={features}")
-        return 1, features
-
-    # Rule 3: Too many failed attempts → risky
+    # Rule 1: Too many failed attempts → always risky
     if failed_att >= 3:
         print(f"Risk Engine: RISKY — Failed attempts={failed_att}")
         return 1, features
 
-    # ML model for borderline cases
+    # Rule 2: Different device AND different geo → risky
+    # (not just different device alone — IP changes on cloud servers)
+    if device_match == 0 and features[4] == 1:
+        print(f"Risk Engine: RISKY — Unknown device + geo | features={features}")
+        return 1, features
+
+    # Rule 3: Same device but completely different IP prefix → risky
+    if device_match == 1 and ip_match == 0 and features[4] == 1:
+        print(f"Risk Engine: RISKY — Same device different geo | features={features}")
+        return 1, features
+
+    # ML model for all other cases
     if rf_model is not None:
         try:
             feature_names = [
@@ -87,6 +98,6 @@ def predict_risk(login_data, user_profile):
         except Exception as e:
             print(f"Risk Engine ML error: {e}")
 
-    # Fallback
-    risk_score = 0 if (ip_match == 1 and device_match == 1) else 1
+    # Fallback — only risky if device AND geo both different
+    risk_score = 1 if (device_match == 0 and features[4] == 1) else 0
     return risk_score, features
