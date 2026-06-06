@@ -1,5 +1,3 @@
-# dashboard_routes.py — Protected routes that require a valid JWT
-
 from flask import Blueprint, request, jsonify
 from utils.jwt_utils import verify_token
 from models.user_model import find_user_by_email
@@ -9,70 +7,71 @@ dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 
 
 def require_auth(f):
-    """
-    Decorator function — wraps protected routes to verify JWT.
-    Usage: @require_auth above any route function.
-    """
     from functools import wraps
-
-    @wraps(f)  # Preserves the original function's name and docstring
+    @wraps(f)
     def decorated(*args, **kwargs):
-        # JWT is sent in the Authorization header as: "Bearer <token>"
         auth_header = request.headers.get("Authorization", "")
-
         if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Authorization header missing or malformed"}), 401
-
-        # Extract the token (remove "Bearer " prefix)
+            return jsonify({"error": "Authorization header missing"}), 401
         token = auth_header.split(" ")[1]
-
-        # Verify the token
         payload = verify_token(token)
         if not payload:
             return jsonify({"error": "Invalid or expired token"}), 401
-
-        # Attach the decoded payload to the request context
         request.current_user = payload["email"]
-
-        # Call the original route function
         return f(*args, **kwargs)
-
     return decorated
 
 
 @dashboard_bp.route("/dashboard", methods=["GET"])
-@require_auth  # This route requires a valid JWT
+@require_auth
 def dashboard():
-    """
-    Protected dashboard endpoint.
-    Returns user info and recent login history.
-    """
-    email = request.current_user  # Set by the require_auth decorator
+    email = request.current_user
 
-    # Fetch user from MongoDB
     user = find_user_by_email(email)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Fetch last 5 login logs for this user
-    recent_logs = list(
-        login_logs_collection.find(
-            {"email": email},
-            {"_id": 0}  # Exclude MongoDB _id field from results
-        ).sort("timestamp", -1).limit(5)  # Sort by newest first, limit 5
-    )
+    # Safe datetime conversion
+    try:
+        created_at = user["created_at"].isoformat()
+    except Exception:
+        created_at = str(user.get("created_at", ""))
 
-    # Convert datetime objects to strings for JSON serialisation
-    for log in recent_logs:
-        if "timestamp" in log:
-            log["timestamp"] = log["timestamp"].isoformat()
+    # Fetch recent login logs
+    try:
+        recent_logs = list(
+            login_logs_collection.find(
+                {"email": email},
+                {"_id": 0}
+            ).sort("timestamp", -1).limit(5)
+        )
+
+        # Safe conversion of each log
+        safe_logs = []
+        for log in recent_logs:
+            safe_log = {
+                "ip": log.get("ip", "unknown"),
+                "risk_score": log.get("risk_score", 0),
+                "action": log.get("action", ""),
+                "otp_triggered": log.get("otp_triggered", False),
+            }
+            # Safe timestamp conversion
+            try:
+                safe_log["timestamp"] = log["timestamp"].isoformat()
+            except Exception:
+                safe_log["timestamp"] = str(log.get("timestamp", ""))
+            safe_logs.append(safe_log)
+
+    except Exception as e:
+        print(f"Log fetch error: {e}")
+        safe_logs = []
 
     return jsonify({
         "message": "Welcome to your dashboard",
         "user": {
             "email": user["email"],
             "is_locked": user.get("is_locked", False),
-            "created_at": user["created_at"].isoformat()
+            "created_at": created_at
         },
-        "recent_logins": recent_logs
+        "recent_logins": safe_logs
     }), 200
