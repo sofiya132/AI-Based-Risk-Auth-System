@@ -126,27 +126,28 @@ def login():
         }), 200
 
     else:
-        otp = generate_otp()
-        save_otp(email, otp)
+     otp = generate_otp()
+    save_otp(email, otp)
 
-        # Send email in background thread — won't crash main request!
-        thread = threading.Thread(
-            target=send_otp_email,
-            args=(current_app._get_current_object(), email, otp)
-        )
-        thread.daemon = True
-        thread.start()
+    import threading
+    from utils.email_utils import send_otp_email
 
-        log_entry["otp_triggered"] = True
-        log_entry["action"] = "otp_sent"
-        login_logs_collection.insert_one(log_entry)
+    thread = threading.Thread(
+        target=send_otp_email,
+        args=(email, otp)
+    )
+    thread.daemon = True
+    thread.start()
 
-        return jsonify({
-            "message": "Risky login detected. OTP sent to your email.",
-            "risk_score": risk_score,
-            "require_otp": True
-        }), 200
+    log_entry["otp_triggered"] = True
+    log_entry["action"] = "otp_sent"
+    login_logs_collection.insert_one(log_entry)
 
+    return jsonify({
+        "message": "Risky login detected. OTP sent to your email.",
+        "risk_score": risk_score,
+        "require_otp": True
+    }), 200
 
 # ─── VERIFY OTP ──────────────────────────────────────────────────────────────
 
