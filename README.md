@@ -232,8 +232,8 @@ Dashboard  Verify OTP
 
 ## 👥 Contributors
 
-- [Sowmya N Kumar](https://github.com/Sowmya11082006)
 - [Sofiya Sindgi](https://github.com/sofiya132)
+- [Sowmya N Kumar](https://github.com/Sowmya11082006)
 - [Zaid Nisar Banday](https://github.com/zaidnisarbanday06)
 
 ---
